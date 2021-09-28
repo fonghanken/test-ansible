@@ -1,0 +1,35 @@
+- hosts: localhost
+  gather_facts: false
+  vars_files:
+    #- vars/ips.yml
+    # - vars/{{ _env }}{{ _vars_dir }}/vars-hidden.yml
+    # - vars/{{ _env }}{{ _vars_dir }}/vars-provision.yml
+  vars:
+    dns_server: 172.16.10.1
+    global_hostname: test-host
+    _host_list:
+      - hello-world
+      - google
+      - yahoo
+    _dc: dc3
+    _env: dev
+    _domains:
+      - com
+      - yahoo.com
+    strcnt: 1
+    endcnt: 3
+  tasks:
+    - name: Loop by List
+      debug: 
+        msg: "{{ item }} Host Address is {{ lookup('dig', item+'.'+_domains.0 ) }}"
+      with_items: "{{ _host_list }}"
+
+    - name: Loop by Sequence
+      vars:
+        _hostname: "{{ global_hostname }}{{ '%02d' | format(i | int) }}"
+        host_fqdn: "{{ _hostname }}.{{ _domains.0 }}"
+      debug: 
+        msg: "{{ _hostname }} Address is {{ lookup('dig', _hostname+'.'+_domains.1 ) }}"
+      loop_control:
+        loop_var: i
+      with_sequence: start={{ strcnt }} end={{ endcnt }}

@@ -1,0 +1,30 @@
+---
+- name: Check if docker container exist
+  shell: "docker ps -a | grep {{ container_name }}"
+  register: container_result
+  failed_when: false
+
+# - debug:
+#     var: container_result
+
+- name: Create {{ container_name }} with latest {{ default_container_image }} image 
+  shell: "docker run -itd --hostname {{ container_name }} --name {{ container_name }} {{ default_container_image }}"
+  when: not (container_result.stdout|length > 0)
+
+- name: Get IP address for {{ container_name }}
+  shell: docker exec {{ container_name }} hostname -I | awk '{print $1}'
+  register: container_ip
+  failed_when: false
+
+# - debug:
+#     var: container_ip.stdout
+
+- name: Update packages in {{ container_name }}[{{ container_ip.stdout }}]
+  shell: docker exec {{ container_name }} apt update
+
+- name: Install ping utils in {{ container_name }}[{{ container_ip.stdout }}]
+  shell: docker exec {{ container_name }} apt -y install iputils-ping
+
+- name: Add {{ container_name }}[{{ container_ip.stdout }}] to network {{ default_network_name }}
+  shell: docker network connect {{ default_network_name }} {{ container_name }}
+  failed_when: false

@@ -1,0 +1,75 @@
+- hosts: localhost
+  gather_facts: false
+  # tasks:
+  #   - name: Container 01 ping Container 02
+  #     shell: "ping -c 5 testcon02"
+  #     register: pingresults
+    
+  #   - debug:
+  #       var: pingresults.stdout
+
+  #   - name: docker exec 
+  #     shell: "ping -c 5 testcon02"
+  #     register: pingresults
+    
+  #   - debug:
+  #       var: pingresults.stdout
+  vars:
+    create_containers: 2
+    default_container_name: docker
+    default_container_image: ubuntu
+    default_network_name: testNetwork
+    cleanup: false
+  tasks:
+    - name: Container 01 ping Container 02
+      shell: "ping -c 5 docker02"
+      ignore_errors: true
+
+    - name: Pull default Docker image
+      shell: docker pull {{ default_container_image }}
+
+    - name: Create Network
+      shell: docker network create {{ default_network_name }}
+      failed_when: false
+
+    - name: Create Container
+      vars:
+        container_name: "{{ default_container_name }}{{ '%02d' | format(i | int) }}"
+      include_tasks: create-container.yml
+      with_sequence: count={{ create_containers }}
+      loop_control:
+        loop_var: i
+
+    - name: Container 01 ping Container 02
+      shell: "docker exec docker01 ping -c 5 docker02"
+      register: result_ping01
+
+    - name: Container 02 ping Container 01
+      shell: "docker exec docker02 ping -c 5 docker01"
+      register: result_ping02
+
+    - name: Execute script
+      shell: 'sh scripts/cleanup_containers.sh "{{ default_container_name }}"'
+      register: cleanup_results
+      when: cleanup
+
+    - name: Result of Docker01 ping on Docker02
+      debug: 
+        var: result_ping01.stdout_lines
+    - name: Result of Docker02 ping on Docker01
+      debug: 
+        var: result_ping02.stdout_lines
+   
+    # - shell: docker exec d4f2560f0abc /bin/sh -c "hostname && hostname -I"
+    #   register: host01
+    # - shell: docker exec 3604d93650a4 /bin/sh -c "hostname && hostname -I"
+    #   register: host02
+    # - shell: docker exec 3604d93650a4 /bin/sh -c "ping -c 5 172.17.0.2"
+    #   register: host02
+    # - debug: 
+    #     var: "host01"
+    # - debug: 
+    #     var: "host02"
+    # - debug: msg="Query qtype {{fqdn}} is {{ lookup('dig', fqdn, '@'+dns_server, 'qtype=PTR') }}"
+    # - debug: msg="Query PTR {{fqdn}} is {{ lookup('dig', fqdn+'/PTR') }}"
+    # - debug: msg="Query PTR @DNS {{fqdn}} is {{ lookup('dig', fqdn+'/PTR', '@'+dns_server') }}"
